@@ -1,8 +1,9 @@
-package com.shekhar.coding.assignment.model
+package com.shekhar.coding.assignment.serdes
 
 import java.nio.charset.Charset
 import java.util
 
+import com.shekhar.coding.assignment.model.User
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.json4s._
 import org.json4s.jackson.JsonMethods._

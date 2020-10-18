@@ -1,5 +1,11 @@
 package com.shekhar.coding.assignment.contexts
 
-trait JobContexts {
+import java.util.Properties
 
+trait JobContexts {
+  def properties: Properties
+}
+
+object JobContexts {
+  val propertiesRoot: String = "com.shekhar.assignment.properties"
 }

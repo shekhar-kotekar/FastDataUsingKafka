@@ -1,5 +1,4 @@
 package com.shekhar.coding.assignment.model
 
-class User {
-
-}
+//TODO: create enum for gender type
+case class User(registertime: Long = 0L, userid: String = "", regionid: String = "", gender: String = "")
