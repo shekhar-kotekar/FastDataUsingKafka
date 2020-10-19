@@ -13,7 +13,7 @@ import com.typesafe.config.Config
  */
 class MostViewedStreamingJobContext(config: Config) extends JobContexts {
   val userTopicName: String = config.getString(usersTopicProperty)
-  val pageViewsTopicName: String = config.getString(pageViewsTopicName)
+  val pageViewsTopicName: String = config.getString(pageViewsTopicProperty)
   val properties: Properties = new Properties()
 
   /*properties.put(StreamsConfig.APPLICATION_ID_CONFIG, s"streaming_application_${UUID.randomUUID().toString}")

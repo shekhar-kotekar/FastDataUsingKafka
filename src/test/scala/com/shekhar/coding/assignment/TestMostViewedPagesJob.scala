@@ -4,14 +4,15 @@ import java.util.Properties
 
 import com.shekhar.coding.assignment.contexts.MostViewedStreamingJobContext
 import com.shekhar.coding.assignment.jobs.{MostViewedPagesJob, StreamingJobs}
-import com.shekhar.coding.assignment.model.User
-import com.shekhar.coding.assignment.serdes.UserJsonSerDe
+import com.shekhar.coding.assignment.model.{PageViewsByUser, User}
+import com.shekhar.coding.assignment.serdes.{GenericSerDe, UserJsonSerDe}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.kafka.common.serialization.Serdes
-import org.apache.kafka.streams.{StreamsConfig, TestInputTopic, TopologyTestDriver}
+import org.apache.kafka.streams.{StreamsConfig, TestInputTopic, TestOutputTopic, TopologyTestDriver}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 
+import scala.collection.JavaConverters._
 /**
  * This class contains various tests for most viewed pages job
  */
@@ -32,6 +33,9 @@ class TestMostViewedPagesJob extends WordSpec with Matchers with BeforeAndAfterA
       properties.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, classOf[UserJsonSerDe])
 
       testDriver = new TopologyTestDriver(streamingJob.getTopology, properties)
+      val usersByPageViewSerDe = new GenericSerDe[PageViewsByUser]
+      val outputTopic: TestOutputTopic[String, PageViewsByUser] =
+        testDriver.createOutputTopic("output_topic", Serdes.String().deserializer(), usersByPageViewSerDe)
 
       val usersTopicName: String = config.getString(MostViewedStreamingJobContext.usersTopicProperty)
       val userSerde = new UserJsonSerDe
@@ -39,8 +43,12 @@ class TestMostViewedPagesJob extends WordSpec with Matchers with BeforeAndAfterA
         testDriver.createInputTopic(usersTopicName, Serdes.String().serializer(), userSerde.serializer())
 
       val firstUser: User = User(1234L, "user_id_1", "region_id_1", "MALE")
+      //TODO: Find a way to generate many records and
+      //TODO: Find a way to simulate windowing operation
       usersTopic.pipeInput("user_id_1", firstUser)
 
+      val output = outputTopic.readValuesToList().asScala
+      output.foreach(println)
     }
   }
 
