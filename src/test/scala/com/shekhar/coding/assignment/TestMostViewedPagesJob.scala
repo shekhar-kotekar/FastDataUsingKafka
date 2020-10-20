@@ -29,6 +29,7 @@ class TestMostViewedPagesJob extends WordSpec with Matchers with BeforeAndAfterA
   properties.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, classOf[UserJsonSerDe])
 
   val usersTopicName: String = config.getString(MostViewedStreamingJobContext.usersTopicProperty)
+  val topPagesTopicName: String = config.getString(MostViewedStreamingJobContext.outputTopicProperty)
   val userSerde = new GenericSerDe[User]
 
   "Most viewed pages job" should {
@@ -65,7 +66,7 @@ class TestMostViewedPagesJob extends WordSpec with Matchers with BeforeAndAfterA
       logger.info("page view data piped")
 
       val outputTopic: TestOutputTopic[String, AggregatedPageViews] =
-        testDriver.createOutputTopic("output_topic", Serdes.String().deserializer(), new AggregatedPageViewsSerDe)
+        testDriver.createOutputTopic(topPagesTopicName, Serdes.String().deserializer(), new AggregatedPageViewsSerDe)
 
       val output = outputTopic.readKeyValuesToList()
       output.asScala.foreach(i => logger.info(s"key: ${i.key}, value: ${i.value}"))
