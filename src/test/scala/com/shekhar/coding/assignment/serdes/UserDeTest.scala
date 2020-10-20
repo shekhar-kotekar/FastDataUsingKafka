@@ -1,6 +1,7 @@
 package com.shekhar.coding.assignment.serdes
 
 import com.shekhar.coding.assignment.model.User
+import com.shekhar.coding.assignment.wrappers.DataGenerator
 import org.scalatest.{Matchers, WordSpec}
 
 class UserDeTest extends WordSpec with Matchers {
@@ -16,6 +17,17 @@ class UserDeTest extends WordSpec with Matchers {
       deserializedUser.regionid shouldEqual(dummyUser.regionid)
       deserializedUser.registertime shouldEqual(dummyUser.registertime)
       deserializedUser.userid shouldEqual(dummyUser.userid)
+    }
+
+    "be able to serialize and deserialize users generated from input data" in {
+      val testData: Seq[User] = DataGenerator.generateUserData
+      val firstUser: User = testData.head
+      val serialized = userSerDe.serialize(topicName, firstUser)
+      val deserializedUser: User = userSerDe.deserialize(topicName, serialized)
+      deserializedUser.gender shouldEqual(firstUser.gender)
+      deserializedUser.regionid shouldEqual(firstUser.regionid)
+      deserializedUser.registertime shouldEqual(firstUser.registertime)
+      deserializedUser.userid shouldEqual(firstUser.userid)
     }
   }
 

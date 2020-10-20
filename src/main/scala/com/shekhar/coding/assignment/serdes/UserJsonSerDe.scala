@@ -4,12 +4,13 @@ import java.nio.charset.Charset
 import java.util
 
 import com.shekhar.coding.assignment.model.User
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import org.json4s.jackson.Serialization.write
 
-class UserJsonSerDe extends Serializer[User] with Deserializer[User] with Serde[User] {
+class UserJsonSerDe extends Serializer[User] with Deserializer[User] with Serde[User] with LazyLogging {
 
   implicit val formats = DefaultFormats
 
@@ -18,7 +19,9 @@ class UserJsonSerDe extends Serializer[User] with Deserializer[User] with Serde[
   }
 
   override def deserialize(s: String, bytes: Array[Byte]): User = {
-    parse(new String(bytes)).extract[User]
+    val input = new String(bytes)
+    logger.info(s"deserializing $input")
+    parse(input).extract[User]
   }
 
   override def close(): Unit = super.close()

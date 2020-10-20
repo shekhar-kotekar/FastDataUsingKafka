@@ -12,8 +12,13 @@ import com.typesafe.config.Config
  * @param config configuration object
  */
 class MostViewedStreamingJobContext(config: Config) extends JobContexts {
+
   val userTopicName: String = config.getString(usersTopicProperty)
   val pageViewsTopicName: String = config.getString(pageViewsTopicProperty)
+
+  val windowSizeInMilliSeconds: Long = config.getOrElse(windowSizeProperty, "500").toLong
+  val advanceWindowByInMilliSeconds: Long = config.getOrElse(advanceWindowByProperty, "10").toLong
+
   val properties: Properties = new Properties()
 
   /*properties.put(StreamsConfig.APPLICATION_ID_CONFIG, s"streaming_application_${UUID.randomUUID().toString}")
@@ -38,6 +43,8 @@ object MostViewedStreamingJobContext {
   val pageViewsTopicProperty: String = s"$propertiesRoot.kafka.pageViewsTopicName"
   val keySerdeClassProperty: String = s"$propertiesRoot.kafka.keySerdeClass"
   val valueSerdeClassProperty: String = s"$propertiesRoot.kafka.valueSerdeClass"
+  val windowSizeProperty: String = s"$propertiesRoot.kafka.windowSize"
+  val advanceWindowByProperty: String = s"$propertiesRoot.kafka.advanceWindowBy"
 
   implicit class ConfigImplicits(config: Config) {
     def getOrElse(propertyName: String, elseValue: String): String = {

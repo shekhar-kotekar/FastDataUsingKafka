@@ -4,14 +4,13 @@ import java.nio.charset.Charset
 import java.util
 
 import com.shekhar.coding.assignment.model.PageView
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.json4s.DefaultFormats
 import org.json4s.jackson.JsonMethods.parse
 import org.json4s.jackson.Serialization.write
 
-//TODO: we can make this SerDe generic such that one class can be used for both
-// user class and this page view class
-class PageViewSerDe extends Serializer[PageView] with Deserializer[PageView] with Serde[PageView] {
+class PageViewSerDe extends Serializer[PageView] with Deserializer[PageView] with Serde[PageView] with LazyLogging {
   implicit val formats = DefaultFormats
 
   override def serialize(s: String, t: PageView): Array[Byte] = {
@@ -19,7 +18,9 @@ class PageViewSerDe extends Serializer[PageView] with Deserializer[PageView] wit
   }
 
   override def deserialize(s: String, bytes: Array[Byte]): PageView = {
-    parse(new String(bytes)).extract[PageView]
+    val input = new String(bytes)
+    logger.info(s"deserializing $input")
+    parse(input).extract[PageView]
   }
 
   override def close(): Unit = super.close()

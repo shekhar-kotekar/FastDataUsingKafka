@@ -3,12 +3,13 @@ package com.shekhar.coding.assignment.serdes
 import java.nio.charset.Charset
 import java.util
 
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.json4s.DefaultFormats
 import org.json4s.jackson.JsonMethods.parse
 import org.json4s.jackson.Serialization.write
 
-class GenericSerDe[A <: AnyRef] extends Serializer[A] with Deserializer[A] with Serde[A] {
+class GenericSerDe[A <: AnyRef] extends Serializer[A] with Deserializer[A] with Serde[A] with LazyLogging {
   implicit val formats = DefaultFormats
 
   override def serialize(s: String, t: A): Array[Byte] = {
@@ -16,7 +17,10 @@ class GenericSerDe[A <: AnyRef] extends Serializer[A] with Deserializer[A] with 
   }
 
   override def deserialize(s: String, bytes: Array[Byte]): A = {
-    parse(new String(bytes)).asInstanceOf[A]
+    val input = new String(bytes)
+    logger.info(s"deserializing $input")
+    val deserializedObject = parse(input).asInstanceOf[A]
+    deserializedObject
   }
 
   override def close(): Unit = super.close()

@@ -4,15 +4,17 @@ import java.util.Properties
 
 import com.shekhar.coding.assignment.contexts.MostViewedStreamingJobContext
 import com.shekhar.coding.assignment.jobs.{MostViewedPagesJob, StreamingJobs}
-import com.shekhar.coding.assignment.model.{PageViewsByUser, User}
+import com.shekhar.coding.assignment.model.{AggregatedPageViews, PageView, PageViewByUserSerDe, PageViewsByUser, User}
 import com.shekhar.coding.assignment.serdes.{GenericSerDe, UserJsonSerDe}
+import com.shekhar.coding.assignment.wrappers.DataGenerator
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.kafka.common.serialization.Serdes
-import org.apache.kafka.streams.{StreamsConfig, TestInputTopic, TestOutputTopic, TopologyTestDriver}
+import org.apache.kafka.streams._
+import org.apache.kafka.streams.test.ConsumerRecordFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 
-import scala.collection.JavaConverters._
+import _root_.scala.collection.JavaConverters._
 /**
  * This class contains various tests for most viewed pages job
  */
@@ -21,34 +23,53 @@ class TestMostViewedPagesJob extends WordSpec with Matchers with BeforeAndAfterA
   private var testDriver: TopologyTestDriver = _
   private val config: Config = ConfigFactory.load()
 
+  private val properties: Properties = new Properties()
+  properties.put(StreamsConfig.APPLICATION_ID_CONFIG, "my_application_id")
+  properties.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "dummy:1234")
+  properties.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass)
+  properties.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, classOf[UserJsonSerDe])
+
+  val usersTopicName: String = config.getString(MostViewedStreamingJobContext.usersTopicProperty)
+  val userSerde = new GenericSerDe[User]
+
   "Most viewed pages job" should {
     "return correct number of jobs" in {
       val jobContext: MostViewedStreamingJobContext = new MostViewedStreamingJobContext(config)
       val streamingJob: StreamingJobs = new MostViewedPagesJob(jobContext)
 
-      val properties: Properties = new Properties()
-      properties.put(StreamsConfig.APPLICATION_ID_CONFIG, "my_application_id")
-      properties.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "dummy:1234")
-      properties.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass)
-      properties.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, classOf[UserJsonSerDe])
+      val topology = streamingJob.getTopology
 
-      testDriver = new TopologyTestDriver(streamingJob.getTopology, properties)
-      val usersByPageViewSerDe = new GenericSerDe[PageViewsByUser]
+      val testDriver = new TopologyTestDriver(topology, properties)
+
+      val usersTopic: TestInputTopic[String, User] = testDriver.createInputTopic(
+        usersTopicName,
+        Serdes.String().serializer(),
+        userSerde.serializer()
+      )
+
+      val usersTestData: Seq[User] = DataGenerator.generateUserData
+      val usersDataKeyValues: Seq[KeyValue[String, User]] = usersTestData.map(user => new KeyValue(user.userid, user))
+      logger.info("user test data piped")
+      usersTopic.pipeKeyValueList(usersDataKeyValues.asJava)
+      //usersTopic.pipeInput(usersTestData.head.userid, usersTestData.head)
+      //usersTestData.foreach(user => usersTopic.pipeInput(user.userid, user))
+
+      val pageViewTopicName: String = config.getString(MostViewedStreamingJobContext.pageViewsTopicProperty)
+      val pageViewSerDe = new GenericSerDe[PageView]
+      val pageViewTopic: TestInputTopic[String, PageView] = testDriver
+        .createInputTopic(pageViewTopicName, Serdes.String().serializer(), pageViewSerDe.serializer())
+
+      val pageViewTestData: Seq[PageView] = DataGenerator.generatePageViewsData
+      val pageViewDataKeyValues: Seq[KeyValue[String, PageView]] = pageViewTestData.map(page => new KeyValue(page.userid, page))
+      pageViewTopic.pipeKeyValueList(pageViewDataKeyValues.asJava)
+      logger.info("page view data piped")
+
       val outputTopic: TestOutputTopic[String, PageViewsByUser] =
-        testDriver.createOutputTopic("output_topic", Serdes.String().deserializer(), usersByPageViewSerDe)
+        testDriver.createOutputTopic("output_topic", Serdes.String().deserializer(), new PageViewByUserSerDe)
 
-      val usersTopicName: String = config.getString(MostViewedStreamingJobContext.usersTopicProperty)
-      val userSerde = new UserJsonSerDe
-      val usersTopic: TestInputTopic[String, User] =
-        testDriver.createInputTopic(usersTopicName, Serdes.String().serializer(), userSerde.serializer())
-
-      val firstUser: User = User(1234L, "user_id_1", "region_id_1", "MALE")
-      //TODO: Find a way to generate many records and
-      //TODO: Find a way to simulate windowing operation
-      usersTopic.pipeInput("user_id_1", firstUser)
-
-      val output = outputTopic.readValuesToList().asScala
-      output.foreach(println)
+      val output = outputTopic.readKeyValuesToList()
+      output.asScala.foreach(i => logger.info(s"key: ${i.key}, value: ${i.value}"))
+      testDriver.close()
     }
   }
 
