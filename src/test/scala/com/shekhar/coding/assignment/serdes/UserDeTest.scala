@@ -4,6 +4,9 @@ import com.shekhar.coding.assignment.model.User
 import com.shekhar.coding.assignment.wrappers.DataGenerator
 import org.scalatest.{Matchers, WordSpec}
 
+/**
+ * Class to check if JSON serde is working correctly
+ */
 class UserDeTest extends WordSpec with Matchers {
   private val userSerDe: UserJsonSerDe = new UserJsonSerDe
   private val dummyUser: User = User(1L, "dummy_user_id_1", "dummy_Region_id_1", "MALE")

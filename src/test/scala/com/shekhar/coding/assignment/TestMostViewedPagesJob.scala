@@ -4,14 +4,13 @@ import java.util.Properties
 
 import com.shekhar.coding.assignment.contexts.MostViewedStreamingJobContext
 import com.shekhar.coding.assignment.jobs.{MostViewedPagesJob, StreamingJobs}
-import com.shekhar.coding.assignment.model.{AggregatedPageViews, PageView, PageViewByUserSerDe, PageViewsByUser, User}
+import com.shekhar.coding.assignment.model.{AggregatedPageViews, AggregatedPageViewsSerDe, PageView, User}
 import com.shekhar.coding.assignment.serdes.{GenericSerDe, UserJsonSerDe}
 import com.shekhar.coding.assignment.wrappers.DataGenerator
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams._
-import org.apache.kafka.streams.test.ConsumerRecordFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 
 import _root_.scala.collection.JavaConverters._
@@ -34,6 +33,7 @@ class TestMostViewedPagesJob extends WordSpec with Matchers with BeforeAndAfterA
 
   "Most viewed pages job" should {
     "return correct number of jobs" in {
+      // generate job context and create the streaming job object which will have logic for the streaming
       val jobContext: MostViewedStreamingJobContext = new MostViewedStreamingJobContext(config)
       val streamingJob: StreamingJobs = new MostViewedPagesJob(jobContext)
 
@@ -47,13 +47,13 @@ class TestMostViewedPagesJob extends WordSpec with Matchers with BeforeAndAfterA
         userSerde.serializer()
       )
 
+      // write user events to kafka topic
       val usersTestData: Seq[User] = DataGenerator.generateUserData
       val usersDataKeyValues: Seq[KeyValue[String, User]] = usersTestData.map(user => new KeyValue(user.userid, user))
       logger.info("user test data piped")
       usersTopic.pipeKeyValueList(usersDataKeyValues.asJava)
-      //usersTopic.pipeInput(usersTestData.head.userid, usersTestData.head)
-      //usersTestData.foreach(user => usersTopic.pipeInput(user.userid, user))
 
+      // write page view data to kafka topic
       val pageViewTopicName: String = config.getString(MostViewedStreamingJobContext.pageViewsTopicProperty)
       val pageViewSerDe = new GenericSerDe[PageView]
       val pageViewTopic: TestInputTopic[String, PageView] = testDriver
@@ -64,8 +64,8 @@ class TestMostViewedPagesJob extends WordSpec with Matchers with BeforeAndAfterA
       pageViewTopic.pipeKeyValueList(pageViewDataKeyValues.asJava)
       logger.info("page view data piped")
 
-      val outputTopic: TestOutputTopic[String, PageViewsByUser] =
-        testDriver.createOutputTopic("output_topic", Serdes.String().deserializer(), new PageViewByUserSerDe)
+      val outputTopic: TestOutputTopic[String, AggregatedPageViews] =
+        testDriver.createOutputTopic("output_topic", Serdes.String().deserializer(), new AggregatedPageViewsSerDe)
 
       val output = outputTopic.readKeyValuesToList()
       output.asScala.foreach(i => logger.info(s"key: ${i.key}, value: ${i.value}"))

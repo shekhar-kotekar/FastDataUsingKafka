@@ -10,6 +10,9 @@ import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import org.json4s.jackson.Serialization.write
 
+/**
+ * This class provides methods to serialize and de-serialize user objects
+ */
 class UserJsonSerDe extends Serializer[User] with Deserializer[User] with Serde[User] with LazyLogging {
 
   implicit val formats = DefaultFormats
@@ -20,7 +23,7 @@ class UserJsonSerDe extends Serializer[User] with Deserializer[User] with Serde[
 
   override def deserialize(s: String, bytes: Array[Byte]): User = {
     val input = new String(bytes)
-    logger.info(s"deserializing $input")
+    logger.debug(s"deserializing $input")
     parse(input).extract[User]
   }
 

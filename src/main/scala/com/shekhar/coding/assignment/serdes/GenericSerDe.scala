@@ -9,6 +9,7 @@ import org.json4s.DefaultFormats
 import org.json4s.jackson.JsonMethods.parse
 import org.json4s.jackson.Serialization.write
 
+//TODO : This serde is failing to de-seriliaze JSON to objects, no longer using it
 class GenericSerDe[A <: AnyRef] extends Serializer[A] with Deserializer[A] with Serde[A] with LazyLogging {
   implicit val formats = DefaultFormats
 
@@ -18,7 +19,6 @@ class GenericSerDe[A <: AnyRef] extends Serializer[A] with Deserializer[A] with 
 
   override def deserialize(s: String, bytes: Array[Byte]): A = {
     val input = new String(bytes)
-    logger.info(s"deserializing $input")
     val deserializedObject = parse(input).asInstanceOf[A]
     deserializedObject
   }

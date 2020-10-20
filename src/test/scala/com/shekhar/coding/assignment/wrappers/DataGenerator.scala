@@ -7,6 +7,9 @@ import com.typesafe.scalalogging.LazyLogging
 
 import scala.io.Source
 
+/**
+ * Companion object used to generate test data
+ */
 object DataGenerator extends LazyLogging {
   private val testDataDirPath: String = "/test_data"
 

@@ -4,22 +4,35 @@ import com.shekhar.coding.assignment.contexts.MostViewedStreamingJobContext
 import com.shekhar.coding.assignment.jobs.{MostViewedPagesJob, StreamingJobs}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.kafka.streams.KafkaStreams
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import scala.util.{Failure, Success}
+/**
+ * Main object responsible for configuring objects needed to create and run job.
+ * To run this job we need to provide absolute path to .conf file using -Dconfig.file=<absolute path> parameter
+ */
+object StreamsMain extends LazyLogging {
 
-object StreamsMain extends App with LazyLogging {
+  private var mostViewdPagesJob: KafkaStreams = _
 
-  val config: Config = ConfigFactory.load()
-  val jobContext: MostViewedStreamingJobContext = new MostViewedStreamingJobContext(config)
-  val stremingJob: StreamingJobs = new MostViewedPagesJob(jobContext)
-  val future: Future[Unit] = Future {
-    Thread.sleep(5000)
+  def main(args: Array[String]): Unit = {
+    try {
+      // read config file and provide it to job context class to create the actual context
+      val config: Config = ConfigFactory.load()
+      val jobContext: MostViewedStreamingJobContext = new MostViewedStreamingJobContext(config)
+
+      // provide context object to streaming job class so as to create topology of the job
+      val stremingJob: StreamingJobs = new MostViewedPagesJob(jobContext)
+
+      // start the job if everything is correct
+      mostViewdPagesJob = new KafkaStreams(stremingJob.getTopology, jobContext.properties)
+      mostViewdPagesJob.start()
+    } catch {
+      case ex: Exception => logger.error("Streaming job failed because", ex)
+    } finally {
+      // close the streaming job before exiting
+      if(mostViewdPagesJob != null) {
+        mostViewdPagesJob.close()
+      }
+    }
   }
-  future.onComplete( {
-    case Success(_) => logger.info("streams job closed")
-    case Failure(error) => logger.error("Unable to run streaming job because, ", error)
-  })
-  Thread.sleep(6000)
 }
