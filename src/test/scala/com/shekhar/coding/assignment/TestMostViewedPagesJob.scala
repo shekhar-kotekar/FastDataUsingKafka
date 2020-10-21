@@ -1,11 +1,12 @@
 package com.shekhar.coding.assignment
 
+import java.time.{Duration, Instant}
 import java.util.Properties
 
 import com.shekhar.coding.assignment.contexts.MostViewedStreamingJobContext
 import com.shekhar.coding.assignment.jobs.{MostViewedPagesJob, StreamingJobs}
-import com.shekhar.coding.assignment.model.{AggregatedPageViews, AggregatedPageViewsSerDe, PageView, User}
-import com.shekhar.coding.assignment.serdes.{GenericSerDe, UserJsonSerDe}
+import com.shekhar.coding.assignment.model.{AggregatedPageViews, AggregatedPageViewsSerDe, PageView, PageViewsByUser, User}
+import com.shekhar.coding.assignment.serdes.{GenericSerDe, PageViewByUserSerDe, UserJsonSerDe}
 import com.shekhar.coding.assignment.wrappers.DataGenerator
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
@@ -40,7 +41,7 @@ class TestMostViewedPagesJob extends WordSpec with Matchers with BeforeAndAfterA
 
       val topology = streamingJob.getTopology
 
-      val testDriver = new TopologyTestDriver(topology, properties)
+      testDriver = new TopologyTestDriver(topology, properties)
 
       val usersTopic: TestInputTopic[String, User] = testDriver.createInputTopic(
         usersTopicName,
@@ -49,10 +50,11 @@ class TestMostViewedPagesJob extends WordSpec with Matchers with BeforeAndAfterA
       )
 
       // write user events to kafka topic
-      val usersTestData: Seq[User] = DataGenerator.generateUserData
-      val usersDataKeyValues: Seq[KeyValue[String, User]] = usersTestData.map(user => new KeyValue(user.userid, user))
+      val usersDataKeyValues: Seq[KeyValue[String, User]] =
+        DataGenerator.generateUserData.map(user => new KeyValue(user.userid, user))
+
       logger.info("user test data piped")
-      usersTopic.pipeKeyValueList(usersDataKeyValues.asJava)
+      usersTopic.pipeKeyValueList(usersDataKeyValues.asJava, Instant.now(), Duration.ofMillis(1000))
 
       // write page view data to kafka topic
       val pageViewTopicName: String = config.getString(MostViewedStreamingJobContext.pageViewsTopicProperty)
@@ -60,17 +62,20 @@ class TestMostViewedPagesJob extends WordSpec with Matchers with BeforeAndAfterA
       val pageViewTopic: TestInputTopic[String, PageView] = testDriver
         .createInputTopic(pageViewTopicName, Serdes.String().serializer(), pageViewSerDe.serializer())
 
-      val pageViewTestData: Seq[PageView] = DataGenerator.generatePageViewsData
-      val pageViewDataKeyValues: Seq[KeyValue[String, PageView]] = pageViewTestData.map(page => new KeyValue(page.userid, page))
-      pageViewTopic.pipeKeyValueList(pageViewDataKeyValues.asJava)
+      val pageViewDataKeyValues: Seq[KeyValue[String, PageView]] =
+        DataGenerator.generatePageViewsData.map(page => new KeyValue(page.userid, page))
+
+      pageViewTopic.pipeKeyValueList(pageViewDataKeyValues.asJava, Instant.now(), Duration.ofMillis(1000))
       logger.info("page view data piped")
 
       val outputTopic: TestOutputTopic[String, AggregatedPageViews] =
         testDriver.createOutputTopic(topPagesTopicName, Serdes.String().deserializer(), new AggregatedPageViewsSerDe)
 
       val output = outputTopic.readKeyValuesToList()
+      logger.info(s"Number of key values in output topic: ${output.size()}")
       output.asScala.foreach(i => logger.info(s"key: ${i.key}, value: ${i.value}"))
-      testDriver.close()
+      //testDriver.close()
+      //logger.info("test driver closed")
     }
   }
 

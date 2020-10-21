@@ -11,6 +11,7 @@ import org.apache.kafka.streams.Topology
 import org.apache.kafka.streams.kstream.{Grouped, JoinWindows, TimeWindows, Windowed, WindowedSerdes}
 import org.apache.kafka.streams.scala.Serdes._
 import org.apache.kafka.streams.scala.kstream._
+import org.apache.kafka.streams.kstream.Suppressed
 import org.apache.kafka.streams.scala.{ByteArrayWindowStore, StreamsBuilder}
 
 /**
@@ -30,7 +31,6 @@ class MostViewedPagesJob(jobContext: MostViewedStreamingJobContext) extends Stre
     implicit val consumed = Consumed.`with`(Serdes.String(), userSerDe)
     val usersStreams:KStream[String, User] = builder.stream(jobContext.userTopicName)
 
-
     implicit val pageViewConsumed = Consumed.`with`(Serdes.String(), pageViewSerde)
     val pageViewsStream: KStream[String, PageView] = builder.stream(jobContext.pageViewsTopicName)
 
@@ -46,22 +46,28 @@ class MostViewedPagesJob(jobContext: MostViewedStreamingJobContext) extends Stre
     val windowSize = TimeUnit.MILLISECONDS.toMillis(jobContext.windowSizeInMilliSeconds)
     val advanceWindowBy = TimeUnit.MILLISECONDS.toMillis(jobContext.advanceWindowByInMilliSeconds)
 
+
     /*
       Join users stream with page views stream,
       map the joined data to get a key of type pageid_gender to be able to group on this key
       Group the stream on newly created key and
       generate sum of viewtimes and count of user IDs
+      Kafka strems produces records as they arrive but we want to produce
+      records only after window has expired so suppress the output until window has expired
       Write the sum and counts to final topic
      */
     usersStreams.join(pageViewsStream)(
       (user: User, pageView: PageView) => PageViewsByUser(user.gender, pageView.pageid, pageView.viewtime),
       JoinWindows.of(Duration.ofDays(1)))
       .map((_, value) => (s"${value.pageid}_${value.gender}", value))
+      .peek((key, value) => logger.info(s"peeking: key: $key, value: $value"))
       .groupByKey(Grouped.`with`(Serdes.String(), usersByPageViewSerde))
-      .windowedBy(TimeWindows.of(Duration.ofMillis(windowSize)).advanceBy(Duration.ofMillis(advanceWindowBy)))
-      .aggregate(AggregatedPageViews.empty)((_, data, aggregate) => {
+      .windowedBy(TimeWindows.of(Duration.ofSeconds(windowSize)).advanceBy(Duration.ofSeconds(advanceWindowBy)))
+      .aggregate(AggregatedPageViews.empty)((key, data, aggregate) => {
+        logger.debug(s"aggregating key: $key, current value: $data, aggregate : $aggregate")
         AggregatedPageViews(data.gender, data.pageid, aggregate.viewtimes + data.viewtime, aggregate.userids + 1)
       })(materialized)
+      .suppress(Suppressed.untilTimeLimit(Duration.ofMillis(windowSize), Suppressed.BufferConfig.unbounded()))
       .toStream
       .to(jobContext.outputTopicName)
 

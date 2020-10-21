@@ -20,8 +20,8 @@ class MostViewedStreamingJobContext(config: Config) extends JobContexts {
   val pageViewsTopicName: String = config.getString(pageViewsTopicProperty)
   val outputTopicName: String = config.getString(outputTopicProperty)
 
-  val windowSizeInMilliSeconds: Long = config.getOrElse(windowSizeProperty, "500").toLong
-  val advanceWindowByInMilliSeconds: Long = config.getOrElse(advanceWindowByProperty, "10").toLong
+  val windowSizeInMilliSeconds: Long = config.getOrElse(windowSizeProperty, "5000").toLong
+  val advanceWindowByInMilliSeconds: Long = config.getOrElse(advanceWindowByProperty, "100").toLong
 
   val properties: Properties = new Properties()
 
