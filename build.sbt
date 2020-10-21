@@ -19,3 +19,5 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.0.5" % "test",
   "com.typesafe" % "config" % "1.4.0"
 )
+
+mainClass in (Compile, packageBin) := Some("com.shekhar.coding.assignment.StreamsMain")
