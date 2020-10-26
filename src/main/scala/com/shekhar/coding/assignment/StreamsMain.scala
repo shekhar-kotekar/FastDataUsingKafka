@@ -12,7 +12,7 @@ import org.apache.kafka.streams.KafkaStreams
  */
 object StreamsMain extends LazyLogging {
 
-  private var mostViewdPagesJob: KafkaStreams = _
+  private var mostViewedPagesJob: KafkaStreams = _
 
   def main(args: Array[String]): Unit = {
     try {
@@ -24,14 +24,14 @@ object StreamsMain extends LazyLogging {
       val stremingJob: StreamingJobs = new MostViewedPagesJob(jobContext)
 
       // start the job if everything is correct
-      mostViewdPagesJob = new KafkaStreams(stremingJob.getTopology, jobContext.properties)
-      mostViewdPagesJob.start()
+      mostViewedPagesJob = new KafkaStreams(stremingJob.getTopology, jobContext.properties)
+      mostViewedPagesJob.start()
     } catch {
       case ex: Exception => logger.error("Streaming job failed because", ex)
     } finally {
       // close the streaming job before exiting
-      if(mostViewdPagesJob != null) {
-        mostViewdPagesJob.close()
+      if(mostViewedPagesJob != null) {
+        mostViewedPagesJob.close()
       }
     }
   }
